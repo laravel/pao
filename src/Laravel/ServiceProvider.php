@@ -31,7 +31,7 @@ final class ServiceProvider extends LaravelServiceProvider
             return;
         }
 
-        if (! AgentDetector::detect()->isAgent && ! isset($_SERVER['PAO_FORCE'])) {
+        if (! AgentDetector::detect()->isAgent && ! ($_SERVER['PAO_FORCE'] ?? false)) {
             return;
         }
 
