@@ -9,4 +9,4 @@ permissions:
 jobs:
   dependabot:
     if: ${{ github.actor == 'dependabot[bot]' }}
-    uses: laravel/.github/.github/workflows/dependabot-auto-merge.yml@b5f0b1a7206f5f4feedb66864e4db687e1f8d8ff
+    uses: laravel/.github/.github/workflows/dependabot-auto-merge.yml@c265c45c41ccb723befb7a2b807dffff4595bd39
