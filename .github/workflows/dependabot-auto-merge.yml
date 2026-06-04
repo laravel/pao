@@ -1,0 +1,12 @@
+name: dependabot-auto-merge
+
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  dependabot:
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    uses: laravel/.github/.github/workflows/dependabot-auto-merge.yml@b5f0b1a7206f5f4feedb66864e4db687e1f8d8ff
