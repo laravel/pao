@@ -61,6 +61,11 @@ register_shutdown_function(function (): void {
             $existing = is_array($result['raw'] ?? null) ? array_values($result['raw']) : [];
 
             $result['raw'] = [...$existing, ...$lines];
+
+            if (($result['result'] ?? null) === 'passed'
+                && in_array('ERROR No code coverage driver is available.', $lines, true)) {
+                $result['result'] = 'failed';
+            }
         }
     }
 

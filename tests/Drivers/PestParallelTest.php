@@ -116,3 +116,18 @@ it('outputs normal pest output when no agent is detected', function () use ($ext
 
     expect($process->getOutput())->not->toContain('"result"');
 });
+
+it('outputs failed json when parallel coverage cannot start without a driver', function (): void {
+    $process = runWith('pest', 'PassingTest', extraArgs: ['--parallel', '--coverage', '--min=100'], extraEnv: [
+        'XDEBUG_MODE' => 'coverage',
+    ]);
+
+    expect($process->getExitCode())->not->toBe(0);
+
+    $output = decodeOutput($process);
+
+    expect($output['result'])->toBe('failed')
+        ->and($output['tests'])->toBe(0)
+        ->and($output['passed'])->toBe(0)
+        ->and($output['raw'])->toContain('ERROR No code coverage driver is available.');
+});
