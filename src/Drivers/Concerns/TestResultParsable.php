@@ -14,6 +14,8 @@ use PHPUnit\Event\Test\Finished;
 use PHPUnit\Event\Test\FinishedSubscriber;
 use PHPUnit\Event\Test\Prepared;
 use PHPUnit\Event\Test\PreparedSubscriber;
+use PHPUnit\Event\TestRunner\ExecutionFinished;
+use PHPUnit\Event\TestRunner\ExecutionFinishedSubscriber;
 use PHPUnit\Event\TestRunner\ExecutionStarted;
 use PHPUnit\Event\TestRunner\ExecutionStartedSubscriber;
 use PHPUnit\TestRunner\TestResult\Facade as TestResultFacade;
@@ -29,6 +31,34 @@ use PHPUnit\TextUI\Configuration\Registry as ConfigurationRegistry;
 trait TestResultParsable
 {
     public ?TestResult $testResult = null;
+
+    private bool $executionFinished = false;
+
+    protected function registerExecutionFinishedSubscriber(): void
+    {
+        try {
+            $markFinished = function (): void {
+                $this->executionFinished = true;
+            };
+
+            EventFacade::instance()->registerSubscriber(
+                new class($markFinished) implements ExecutionFinishedSubscriber
+                {
+                    /**
+                     * @param  \Closure(): void  $markFinished
+                     */
+                    public function __construct(private \Closure $markFinished) {}
+
+                    public function notify(ExecutionFinished $event): void
+                    {
+                        ($this->markFinished)();
+                    }
+                },
+            );
+        } catch (\Throwable) {
+            //
+        }
+    }
 
     protected function startTimer(): void
     {
@@ -102,6 +132,10 @@ trait TestResultParsable
         if (class_exists(WrapperRunner::class, false)
             && WrapperRunner::$result instanceof TestResult) {
             return WrapperRunner::$result;
+        }
+
+        if (! $this->executionFinished) {
+            return null;
         }
 
         try {

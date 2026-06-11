@@ -129,6 +129,13 @@ it('does not break tests that register shutdown functions', function (): void {
         ->and($output['tests'])->toBe(1);
 });
 
+it('does not emit a result when the run is aborted before it finishes', function (): void {
+    $process = runWith('phpunit', 'AbortedRunTest');
+
+    expect($process->getOutput())->not->toContain('"tool"')
+        ->and($process->getOutput())->not->toContain('"result"');
+});
+
 it('does not break tests that spawn child processes', function (): void {
     $output = decodeOutput(runWith('phpunit', 'ExecTest'));
 
