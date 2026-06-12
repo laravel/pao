@@ -12,9 +12,6 @@ final class AbortedRunTest extends TestCase
     {
         $this->assertTrue(true);
 
-        // Simulate a run that never reaches the TestRunner\ExecutionFinished
-        // event (e.g. a fatal error or an interrupted process). The shutdown
-        // function still fires, but no completed test result should be emitted.
         exit(0);
     }
 }

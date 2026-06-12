@@ -42,7 +42,7 @@ trait TestResultParsable
             };
 
             EventFacade::instance()->registerSubscriber(
-                new class($markFinished) implements ExecutionFinishedSubscriber
+                new readonly class($markFinished) implements ExecutionFinishedSubscriber
                 {
                     /**
                      * @param  \Closure(): void  $markFinished
