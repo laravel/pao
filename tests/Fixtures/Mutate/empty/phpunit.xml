@@ -3,11 +3,14 @@
     xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.0/phpunit.xsd"
     colors="false"
     cacheDirectory=".phpunit.cache">
-<testsuites>
+    <testsuites>
         <testsuite name="default">
             <directory suffix="Test.php">.</directory>
-            <exclude>./Pest</exclude>
-            <exclude>./Mutate</exclude>
         </testsuite>
     </testsuites>
+    <source>
+        <include>
+            <directory suffix=".php">./src</directory>
+        </include>
+    </source>
 </phpunit>

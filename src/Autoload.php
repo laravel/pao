@@ -19,6 +19,10 @@ if (filter_var($_SERVER['PAO_DISABLE'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
     return;
 }
 
+if (getenv('PEST_MUTATION_TESTING') !== false) {
+    return;
+}
+
 $agent = AgentDetector::detect();
 
 if (! $agent->isAgent && ! filter_var($_SERVER['PAO_FORCE'] ?? false, FILTER_VALIDATE_BOOLEAN)) {

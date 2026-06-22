@@ -48,7 +48,7 @@ final class Execution
 
         $starter = match ($binary) {
             'paratest' => new Drivers\Paratest\Starter,
-            'pest' => new Drivers\Pest\Starter,
+            'pest' => self::resolvePestStarter($argv),
             'phpstan', 'phpstan.phar' => new Drivers\Phpstan\Starter,
             'phpunit' => new Drivers\Phpunit\Starter,
             'rector' => new Drivers\Rector\Starter,
@@ -63,6 +63,16 @@ final class Execution
 
             $starter->start();
         }
+    }
+
+    /**
+     * @param  array<int, string>  $argv
+     */
+    private static function resolvePestStarter(array $argv): Driver
+    {
+        return in_array('--mutate', $argv, true)
+            ? new Drivers\PestMutate\Starter
+            : new Drivers\Pest\Starter;
     }
 
     public static function running(): bool

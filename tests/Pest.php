@@ -33,6 +33,41 @@ function runWith(string $binary, string $filter, bool $withAgent = true, array $
     return $process;
 }
 
+/**
+ * @param  array<int, string>  $extraArgs
+ */
+function runMutate(string $dir, bool $withAgent = true, array $extraArgs = []): Process
+{
+    $source = $dir.'/src';
+
+    $command = [
+        PHP_BINARY,
+        '-d', 'pcov.enabled=1',
+        '-d', 'pcov.directory='.$source,
+        'vendor/bin/pest',
+        '--mutate',
+        '--path='.$source,
+        '--configuration', $dir.'/phpunit.xml',
+        ...$extraArgs,
+    ];
+
+    $env = array_merge(buildAgentEnvironment($withAgent), [
+        'PARATEST' => false,
+        'TEST_TOKEN' => false,
+        'UNIQUE_TEST_TOKEN' => false,
+    ]);
+
+    $process = new Process(
+        command: $command,
+        cwd: dirname(__DIR__),
+        env: $env,
+    );
+
+    $process->run();
+
+    return $process;
+}
+
 function cleanOutput(string $raw): string
 {
     $raw = str_replace("\r", '', $raw);

@@ -36,6 +36,15 @@ abstract class Starter implements Driver
         $execution->filter = stream_filter_append(STDOUT, 'agent_output_capture', STREAM_FILTER_WRITE) ?: null;
     }
 
+    protected function discardStdout(): void
+    {
+        $this->registerNullFilter();
+
+        $execution = Execution::current();
+
+        $execution->filter = stream_filter_append(STDOUT, 'agent_output_null', STREAM_FILTER_WRITE) ?: null;
+    }
+
     protected function silenceStderr(): void
     {
         stream_filter_append(STDERR, 'agent_output_null', STREAM_FILTER_WRITE);
