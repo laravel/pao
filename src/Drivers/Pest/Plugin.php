@@ -29,8 +29,11 @@ final class Plugin implements HandlesArguments
             return $arguments;
         }
 
-        $arguments[] = '--no-output';
-        $arguments[] = '--no-progress';
+        foreach (['--no-output', '--no-progress'] as $flag) {
+            if (! in_array($flag, $arguments, true)) {
+                $arguments[] = $flag;
+            }
+        }
 
         return $arguments;
     }
