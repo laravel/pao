@@ -145,3 +145,10 @@ it('outputs normal pest output when PAO_FORCE is falsy without an agent', functi
     expect($process->getOutput())->not->toContain('"result"')
         ->and($process->getOutput())->toContain('passed');
 })->with(['0', 'false']);
+
+it('does not repeat an output flag the caller already passed', function (string $flag): void {
+    $process = runWith('pest', 'PassingTest', extraArgs: [$flag]);
+
+    expect($process->getExitCode())->toBe(0)
+        ->and(decodeOutput($process)['result'])->toBe('passed');
+})->with(['--no-output', '--no-progress']);
