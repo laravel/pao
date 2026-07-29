@@ -29,7 +29,7 @@
         "laravel/agent-detector": "^2.0.2"
     },
     "require-dev": {
-        "brianium/paratest": "^7.23.0",
+        "brianium/paratest": "^7.20.0",
         "laravel/pint": "^1.30.0",
         "orchestra/testbench": "^10.11.0 || ^11.1.0",
         "pestphp/pest": "^4.7.2 || ^5.0.1",
