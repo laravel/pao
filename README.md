@@ -96,6 +96,24 @@ When installed in a Laravel 12+ application, PAO automatically cleans Artisan co
 
 Up to **75% fewer tokens** on commands like `about`, `db:show`, and `migrate:status` — same information, no decoration.
 
+### Guarding Destructive Commands
+
+When PAO detects an agent, it automatically **blocks destructive database commands** — `migrate:fresh`, `migrate:refresh`, `migrate:reset`, `migrate:rollback`, and `db:wipe` — so an agent can't accidentally wipe your database. The command exits with a failure and warns the agent:
+
+```
+That is a dangerous command and has not been executed. Ask the user to run it manually, then continue.
+```
+
+This keeps humans in control of irreversible operations. The guard runs *before* the command does anything, ignores `--force`, and also covers the nested `db:wipe` call that `migrate:fresh` makes internally.
+
+If you legitimately want an agent to run these (for example, an ephemeral CI database), opt out with the `PAO_GUARD_DISABLE` environment variable:
+
+```bash
+PAO_GUARD_DISABLE=1 php artisan migrate:fresh
+```
+
+> **Note:** The guard only activates when an agent is detected, and it is disabled entirely during your own test suite (so traits like `RefreshDatabase`, which call `migrate:fresh`, keep working).
+
 ### PHPStan
 
 PHPStan output is also converted to structured JSON:

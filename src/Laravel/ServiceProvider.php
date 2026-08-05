@@ -31,6 +31,10 @@ final class ServiceProvider extends LaravelServiceProvider
             return;
         }
 
+        if ($this->shouldGuardDestructiveCommands()) {
+            $this->app->make(DestructiveCommandGuard::class)->activate();
+        }
+
         if (! AgentDetector::detect()->isAgent && ! filter_var($_SERVER['PAO_FORCE'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
             return;
         }
@@ -42,5 +46,14 @@ final class ServiceProvider extends LaravelServiceProvider
         $events->listen(CommandStarting::class, function (CommandStarting $event): void {
             $event->output->setDecorated(false);
         });
+    }
+
+    private function shouldGuardDestructiveCommands(): bool
+    {
+        if (! AgentDetector::detect()->isAgent && ! filter_var($_SERVER['PAO_FORCE'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+            return false;
+        }
+
+        return ! filter_var($_SERVER['PAO_GUARD_DISABLE'] ?? false, FILTER_VALIDATE_BOOLEAN);
     }
 }
