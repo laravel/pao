@@ -31,12 +31,21 @@ it('returns null for empty string', function (): void {
     expect(phpstanParse(''))->toBeNull();
 });
 
-it('returns null for invalid json', function (): void {
-    expect(phpstanParse('not json'))->toBeNull();
+it('surfaces raw output for invalid json instead of staying silent', function (): void {
+    $result = phpstanParse('not json');
+
+    expect($result)->not->toBeNull()
+        ->and($result['raw'])->toBe(['not json'])
+        ->and($result)->not->toHaveKey('result')
+        ->and($result)->not->toHaveKey('errors');
 });
 
-it('returns null for json without totals', function (): void {
-    expect(phpstanParse('{"foo":"bar"}'))->toBeNull();
+it('surfaces raw output for json without totals', function (): void {
+    $result = phpstanParse('{"foo":"bar"}');
+
+    expect($result)->not->toBeNull()
+        ->and($result['raw'])->toBe(['{"foo":"bar"}'])
+        ->and($result)->not->toHaveKey('result');
 });
 
 it('returns passed for zero errors', function (): void {

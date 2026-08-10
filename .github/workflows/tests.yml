@@ -57,3 +57,54 @@ jobs:
 
     - name: Unit Tests
       run: composer test:unit
+
+  paratest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          # The only release supporting PHP 8.3, and the last one running on
+          # PHPUnit 12.5 — where `TestResult` takes 31 constructor arguments.
+          - php: '8.3'
+            pest: '4'
+            paratest: '7.20.0'
+          # Requires PHPUnit >= 13.3, where `TestResult` gained the
+          # `numberOfDeprecationsByTrigger` and `retriedTests` arguments.
+          - php: '8.5'
+            pest: '5'
+            paratest: '7.24.0'
+
+    name: Paratest ${{ matrix.paratest }} - P${{ matrix.php }} - Pest ${{ matrix.pest }}
+
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+      with:
+        php-version: ${{ matrix.php }}
+        extensions: dom, fileinfo, mbstring, zip
+        coverage: pcov
+
+    - name: Get Composer cache directory
+      id: composer-cache
+      shell: bash
+      run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+    - name: Cache dependencies
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
+      with:
+        path: ${{ steps.composer-cache.outputs.dir }}
+        key: dependencies-php-${{ matrix.php }}-pest-${{ matrix.pest }}-paratest-${{ matrix.paratest }}-composer-${{ hashFiles('composer.json') }}
+        restore-keys: dependencies-php-${{ matrix.php }}-pest-${{ matrix.pest }}-paratest-${{ matrix.paratest }}-composer-
+
+    - name: Install Composer dependencies
+      run: composer update --prefer-stable --no-interaction --prefer-dist --with "pestphp/pest:${{ matrix.pest }}.*" --with "brianium/paratest:${{ matrix.paratest }}"
+
+    - name: Unit Tests
+      run: composer test:unit

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Laravel\Pao\Drivers\Phpstan;
 
 use Laravel\Pao\Drivers\Starter as BaseStarter;
+use Laravel\Pao\OutputCleaner;
 use Laravel\Pao\UserFilters\CaptureFilter;
+use Laravel\Pao\UserFilters\StderrCaptureFilter;
 
 /**
  * @internal
@@ -21,16 +23,62 @@ final class Starter extends BaseStarter
 
     public function start(): void
     {
-        $this->registerNullFilter();
-        $this->silenceStderr();
-
         /** @var array<int, string> $argv */
         $argv = $_SERVER['argv'];
+
+        if (! $this->shouldTransform($argv)) {
+            return;
+        }
+
+        $this->captureStderr();
+
         $argv = $this->ensureErrorFormatJson($argv);
         $argv = $this->ensureNoProgress($argv);
         $_SERVER['argv'] = $argv;
 
         $this->silenceStdout();
+    }
+
+    /**
+     * @param  array<int, string>  $argv
+     */
+    private function shouldTransform(array $argv): bool
+    {
+        return $this->isAnalyseCommand($argv) && $this->producesJsonReport($argv);
+    }
+
+    /**
+     * @param  array<int, string>  $argv
+     */
+    private function isAnalyseCommand(array $argv): bool
+    {
+        foreach (array_slice($argv, 1) as $arg) {
+            if (str_starts_with($arg, '-')) {
+                continue;
+            }
+
+            return in_array($arg, ['analyse', 'analyze'], true);
+        }
+
+        return true;
+    }
+
+    /**
+     * @param  array<int, string>  $argv
+     */
+    private function producesJsonReport(array $argv): bool
+    {
+        foreach ($argv as $arg) {
+            if (in_array($arg, ['-b', '--generate-baseline', '--fix', '--watch', '--pro'], true)) {
+                return false;
+            }
+
+            if (str_starts_with($arg, '--generate-baseline=')) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -42,8 +90,12 @@ final class Starter extends BaseStarter
 
         CaptureFilter::reset();
 
+        $stderr = trim(StderrCaptureFilter::output());
+
+        StderrCaptureFilter::reset();
+
         if ($captured === '') {
-            return null;
+            return $this->fallback($stderr);
         }
 
         $start = strpos($captured, '{');
@@ -56,7 +108,7 @@ final class Starter extends BaseStarter
         $data = json_decode($captured, associative: true);
 
         if (! is_array($data) || ! isset($data['totals'])) {
-            return null;
+            return $this->fallback($stderr, $captured);
         }
 
         /** @var array<string, list<array{line: int, message: string, identifier: string, ignorable?: bool, tip?: string}>> $errorDetails */
@@ -122,6 +174,22 @@ final class Starter extends BaseStarter
         }
 
         return $result;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function fallback(string $stderr, string $stdout = ''): ?array
+    {
+        $message = trim(OutputCleaner::clean($stderr !== '' ? $stderr : $stdout));
+
+        if ($message === '') {
+            return null;
+        }
+
+        return [
+            'raw' => [$message],
+        ];
     }
 
     private function agentInstructions(): string

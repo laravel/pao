@@ -30,14 +30,14 @@
     },
     "require-dev": {
         "brianium/paratest": "^7.20.0",
-        "laravel/pint": "^1.30.0",
+        "laravel/pint": "^1.30.5",
         "orchestra/testbench": "^10.11.0 || ^11.1.0",
-        "pestphp/pest": "^4.7.2 || ^5.0.1",
-        "pestphp/pest-plugin-type-coverage": "^4.0.4 || ^5.0.0",
-        "phpstan/phpstan": "^2.2.7",
-        "rector/rector": "^2.5.8",
-        "symfony/process": "^7.4.8 || ^8.1.0",
-        "symfony/var-dumper": "^7.4.8 || ^8.1.2"
+        "pestphp/pest": "^4.7.8 || ^5.1.0",
+        "pestphp/pest-plugin-type-coverage": "^4.0.4 || ^5.0.2",
+        "phpstan/phpstan": "^2.2.8",
+        "rector/rector": "^2.6.1",
+        "symfony/process": "^7.4.13 || ^8.1.0",
+        "symfony/var-dumper": "^7.4.15 || ^8.1.2"
     },
     "conflict": {
         "laravel/framework": "<12.0.0",

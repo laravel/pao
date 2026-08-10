@@ -8,6 +8,7 @@ use Laravel\Pao\Contracts\Driver;
 use Laravel\Pao\Execution;
 use Laravel\Pao\UserFilters\CaptureFilter;
 use Laravel\Pao\UserFilters\NullFilter;
+use Laravel\Pao\UserFilters\StderrCaptureFilter;
 
 /**
  * @internal
@@ -36,9 +37,15 @@ abstract class Starter implements Driver
         $execution->filter = stream_filter_append(STDOUT, 'agent_output_capture', STREAM_FILTER_WRITE) ?: null;
     }
 
-    protected function silenceStderr(): void
+    protected function captureStderr(): void
     {
-        stream_filter_append(STDERR, 'agent_output_null', STREAM_FILTER_WRITE);
+        if (! in_array('agent_output_stderr_capture', stream_get_filters(), true)) {
+            stream_filter_register('agent_output_stderr_capture', StderrCaptureFilter::class);
+        }
+
+        StderrCaptureFilter::reset();
+
+        stream_filter_append(STDERR, 'agent_output_stderr_capture', STREAM_FILTER_WRITE);
     }
 
     protected function saveStdout(): void

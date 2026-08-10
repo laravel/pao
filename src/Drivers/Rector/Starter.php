@@ -54,7 +54,6 @@ final class Starter extends BaseStarter
 
         if (! is_array($data) || ! is_array($data['totals'] ?? null)) {
             return [
-                'result' => 'failed',
                 'raw' => [$captured],
             ];
         }
@@ -64,7 +63,6 @@ final class Starter extends BaseStarter
 
         if (! is_int($changedFiles) || ! is_int($errors)) {
             return [
-                'result' => 'failed',
                 'raw' => [$captured],
             ];
         }

@@ -154,11 +154,45 @@ final readonly class WrapperRunner implements RunnerInterface
                 $sum->numberOfIssuesIgnoredByBaseline() + $testResult->numberOfIssuesIgnoredByBaseline(),
             ];
 
+            $arguments = [
+                ...$arguments,
+                ...$this->mergeDeprecationSummary($sum, $testResult),
+            ];
+
             /** @phpstan-ignore-next-line argument.type */
             $sum = new TestResult(...$arguments);
         }
 
         return $sum;
+    }
+
+    /**
+     * @return list<array<mixed>>
+     */
+    private function mergeDeprecationSummary(object $sum, object $testResult): array
+    {
+        $counts = [];
+
+        foreach ([
+            'self' => 'numberOfSelfDeprecations',
+            'direct' => 'numberOfDirectDeprecations',
+            'indirect' => 'numberOfIndirectDeprecations',
+            'unknown' => 'numberOfDeprecationsWithUnknownTrigger',
+        ] as $key => $method) {
+            if (! method_exists($sum, $method) || ! method_exists($testResult, $method)) {
+                return [];
+            }
+
+            $first = $sum->{$method}();
+            $second = $testResult->{$method}();
+
+            $counts[$key] = (is_int($first) ? $first : 0) + (is_int($second) ? $second : 0);
+        }
+
+        return [
+            $counts,
+            ...$this->mergeEventLists($sum, $testResult, ['retriedTests']),
+        ];
     }
 
     /**
