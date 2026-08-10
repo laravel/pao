@@ -193,14 +193,22 @@ final class Starter extends BaseStarter
      */
     private function fallback(string $stderr, string $stdout = ''): ?array
     {
-        $message = trim(OutputCleaner::clean($stderr !== '' ? $stderr : $stdout));
+        $messages = [];
 
-        if ($message === '') {
+        foreach ([$stderr, $stdout] as $output) {
+            $message = trim(OutputCleaner::clean($output));
+
+            if ($message !== '') {
+                $messages[] = $message;
+            }
+        }
+
+        if ($messages === []) {
             return null;
         }
 
         return [
-            'raw' => [$message],
+            'raw' => $messages,
         ];
     }
 

@@ -4,25 +4,37 @@ declare(strict_types=1);
 
 use Laravel\Pao\Drivers\Phpstan\Starter;
 use Laravel\Pao\UserFilters\CaptureFilter;
+use Laravel\Pao\UserFilters\StderrCaptureFilter;
 
-function phpstanParse(string $input): ?array
+function phpstanParse(string $input, string $stderr = ''): ?array
 {
     CaptureFilter::reset();
+    StderrCaptureFilter::reset();
 
     if (! in_array('agent_output_capture', stream_get_filters(), true)) {
         stream_filter_register('agent_output_capture', CaptureFilter::class);
     }
 
-    $filter = stream_filter_append(STDOUT, 'agent_output_capture', STREAM_FILTER_WRITE);
-    fwrite(STDOUT, $input);
+    if (! in_array('agent_output_stderr_capture', stream_get_filters(), true)) {
+        stream_filter_register('agent_output_stderr_capture', StderrCaptureFilter::class);
+    }
 
-    if (is_resource($filter)) {
-        stream_filter_remove($filter);
+    $filter = stream_filter_append(STDOUT, 'agent_output_capture', STREAM_FILTER_WRITE);
+    $stderrFilter = stream_filter_append(STDERR, 'agent_output_stderr_capture', STREAM_FILTER_WRITE);
+
+    fwrite(STDOUT, $input);
+    fwrite(STDERR, $stderr);
+
+    foreach ([$filter, $stderrFilter] as $appended) {
+        if (is_resource($appended)) {
+            stream_filter_remove($appended);
+        }
     }
 
     $result = (new Starter)->parse();
 
     CaptureFilter::reset();
+    StderrCaptureFilter::reset();
 
     return $result;
 }
@@ -46,6 +58,20 @@ it('surfaces raw output for json without totals', function (): void {
     expect($result)->not->toBeNull()
         ->and($result['raw'])->toBe(['{"foo":"bar"}'])
         ->and($result)->not->toHaveKey('result');
+});
+
+it('surfaces raw output written to stderr', function (): void {
+    $result = phpstanParse('', 'config file does not exist');
+
+    expect($result)->not->toBeNull()
+        ->and($result['raw'])->toBe(['config file does not exist']);
+});
+
+it('surfaces both streams when each one carries output', function (): void {
+    $result = phpstanParse('not json', 'config file does not exist');
+
+    expect($result)->not->toBeNull()
+        ->and($result['raw'])->toBe(['config file does not exist', 'not json']);
 });
 
 it('returns passed for zero errors', function (): void {
