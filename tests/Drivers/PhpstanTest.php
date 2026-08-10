@@ -60,8 +60,11 @@ it('surfaces raw output when the config file is missing', function (): void {
 
     $output = decodeOutput($process);
 
-    expect($output['raw'][0])->toContain('does-not-exist.neon')
-        ->and($output['raw'][0])->toContain('does not exist')
+    $raw = implode("\n", $output['raw']);
+
+    expect($raw)->toContain('does-not-exist.neon')
+        ->and($raw)->toContain('does not exist')
+        ->and($output['raw'])->each->not->toContain("\n")
         ->and($output)->not->toHaveKey('result')
         ->and($output)->not->toHaveKey('errors');
 });
@@ -71,7 +74,7 @@ it('surfaces raw output for an invalid option', function (): void {
 
     $output = decodeOutput($process);
 
-    expect($output['raw'][0])->toContain('--totally-bogus-flag')
+    expect(implode("\n", $output['raw']))->toContain('--totally-bogus-flag')
         ->and($output)->not->toHaveKey('result');
 });
 

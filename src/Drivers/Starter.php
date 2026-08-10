@@ -54,4 +54,37 @@ abstract class Starter implements Driver
 
         $execution->stdout = fopen('php://stdout', 'w') ?: STDOUT;
     }
+
+    /**
+     * @param  array<int, string>  $argv
+     */
+    protected function commandName(array $argv): ?string
+    {
+        foreach (array_slice($argv, 1) as $arg) {
+            if (! str_starts_with($arg, '-')) {
+                return $arg;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<int, string>  $argv
+     * @return array<int, string>
+     */
+    protected function addOption(array $argv, string $option): array
+    {
+        $separator = array_search('--', $argv, true);
+
+        if (! is_int($separator)) {
+            $argv[] = $option;
+
+            return $argv;
+        }
+
+        array_splice($argv, $separator, 0, [$option]);
+
+        return $argv;
+    }
 }

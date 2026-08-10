@@ -74,6 +74,24 @@ it('surfaces both streams when each one carries output', function (): void {
         ->and($result['raw'])->toBe(['config file does not exist', 'not json']);
 });
 
+it('splits raw fallback output into one entry per line', function (): void {
+    $result = phpstanParse("first line\n\n   second line   \nthird line");
+
+    expect($result['raw'])->toBe(['first line', 'second line', 'third line']);
+});
+
+it('splits both streams into lines, stderr first', function (): void {
+    $result = phpstanParse("out one\nout two", "err one\nerr two");
+
+    expect($result['raw'])->toBe(['err one', 'err two', 'out one', 'out two']);
+});
+
+it('drops blank lines from raw fallback output', function (): void {
+    $result = phpstanParse("\n\n  \nonly line\n \n");
+
+    expect($result['raw'])->toBe(['only line']);
+});
+
 it('returns passed for zero errors', function (): void {
     $json = (string) json_encode([
         'totals' => ['errors' => 0, 'file_errors' => 0],

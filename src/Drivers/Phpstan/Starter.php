@@ -55,21 +55,23 @@ final class Starter extends BaseStarter
      */
     private function analyseArguments(array $argv): ?array
     {
+        $command = $this->commandName($argv);
+
+        if ($command !== null && ! in_array($command, ['analyse', 'analyze'], true)) {
+            return null;
+        }
+
         $arguments = [];
-        $command = null;
+        $skipped = false;
 
         foreach (array_slice($argv, 1) as $arg) {
-            if ($command === null && ! str_starts_with($arg, '-')) {
-                $command = $arg;
+            if (! $skipped && $arg === $command) {
+                $skipped = true;
 
                 continue;
             }
 
             $arguments[] = $arg;
-        }
-
-        if ($command !== null && ! in_array($command, ['analyse', 'analyze'], true)) {
-            return null;
         }
 
         return $arguments;
@@ -193,22 +195,24 @@ final class Starter extends BaseStarter
      */
     private function fallback(string $stderr, string $stdout = ''): ?array
     {
-        $messages = [];
+        $lines = [];
 
         foreach ([$stderr, $stdout] as $output) {
-            $message = trim(OutputCleaner::clean($output));
+            foreach (explode("\n", OutputCleaner::clean($output)) as $line) {
+                $line = trim($line);
 
-            if ($message !== '') {
-                $messages[] = $message;
+                if ($line !== '') {
+                    $lines[] = $line;
+                }
             }
         }
 
-        if ($messages === []) {
+        if ($lines === []) {
             return null;
         }
 
         return [
-            'raw' => $messages,
+            'raw' => $lines,
         ];
     }
 
@@ -299,24 +303,5 @@ final class Starter extends BaseStarter
         }
 
         return $this->addOption($argv, '--no-progress');
-    }
-
-    /**
-     * @param  array<int, string>  $argv
-     * @return array<int, string>
-     */
-    private function addOption(array $argv, string $option): array
-    {
-        $separator = array_search('--', $argv, true);
-
-        if (! is_int($separator)) {
-            $argv[] = $option;
-
-            return $argv;
-        }
-
-        array_splice($argv, $separator, 0, [$option]);
-
-        return $argv;
     }
 }

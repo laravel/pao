@@ -93,6 +93,41 @@ it('surfaces raw output for json without totals', function (): void {
         ->and($result)->not->toHaveKey('result');
 });
 
+it('surfaces the fatal errors rector reports instead of escaping them into raw', function (): void {
+    $result = rectorParse('{"fatal_errors":["The path \"nope.php\" does not exist."]}');
+
+    expect($result)->not->toBeNull()
+        ->and($result['result'])->toBe('failed')
+        ->and($result['fatal_errors'])->toBe(['The path "nope.php" does not exist.'])
+        ->and($result)->not->toHaveKey('raw');
+});
+
+it('surfaces every fatal error rector reports', function (): void {
+    $result = rectorParse('{"fatal_errors":["  first  ","second"]}');
+
+    expect($result['fatal_errors'])->toBe(['first', 'second']);
+});
+
+it('ignores fatal error entries that hold no message', function (): void {
+    $json = '{"fatal_errors":["","   ",null,42,[]]}';
+
+    $result = rectorParse($json);
+
+    expect($result['raw'])->toBe([$json])
+        ->and($result)->not->toHaveKey('fatal_errors');
+});
+
+it('keeps the totals report when fatal errors are reported alongside it', function (): void {
+    $result = rectorParse((string) json_encode([
+        'totals' => ['changed_files' => 0, 'errors' => 0],
+        'fatal_errors' => ['something exploded'],
+    ]));
+
+    expect($result['result'])->toBe('passed')
+        ->and($result['totals'])->toBe(['changed_files' => 0, 'errors' => 0])
+        ->and($result['fatal_errors'])->toBe(['something exploded']);
+});
+
 it('surfaces raw output when totals are not integers', function (): void {
     $json = rectorJson(['changed_files' => 'many', 'errors' => 0]);
 
@@ -149,6 +184,34 @@ it('ignores noise printed before the json payload', function (): void {
 
 it('forces the json output format', function (): void {
     expect(rectorArgv(['rector', 'process']))->toBe(['rector', 'process', '--output-format=json']);
+});
+
+it('forces the json output format on every implicit process run', function (array $argv): void {
+    expect(rectorArgv($argv))->toBe([...$argv, '--output-format=json']);
+})->with([
+    [['rector']],
+    [['rector', 'p']],
+    [['rector', '--dry-run']],
+    [['rector', 'src']],
+]);
+
+it('leaves every other rector command untouched', function (string $command): void {
+    expect(rectorArgv(['rector', $command]))->toBe(['rector', $command]);
+})->with([
+    'list',
+    'list-rules',
+    'show-rules',
+    'custom-rule',
+    'setup-ci',
+    'composer-based',
+    'help',
+    'completion',
+    '_complete',
+]);
+
+it('keeps the output format before the end of options separator', function (): void {
+    expect(rectorArgv(['rector', 'process', '--', 'src']))
+        ->toBe(['rector', 'process', '--output-format=json', '--', 'src']);
 });
 
 it('replaces an output format passed with an equals sign', function (): void {
