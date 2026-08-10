@@ -51,7 +51,11 @@ it('outputs json for deprecation tests', function (): void {
     $output = decodeOutput(runWith('paratest', 'DeprecationTest'));
 
     expect($output['result'])->toBe('passed')
-        ->and($output['tests'])->toBe(1);
+        ->and($output['tests'])->toBe(1)
+        ->and($output['deprecations'])->toBe(1)
+        ->and($output['deprecation_details'])->toHaveCount(1)
+        ->and($output['deprecation_details'][0]['file'])->toEndWith('DeprecationTest.php')
+        ->and($output['deprecation_details'][0]['message'])->toBe('This function is deprecated');
 });
 
 it('outputs json for warning tests', function (): void {
@@ -108,6 +112,35 @@ it('outputs json for multiple failures and errors', function (): void {
         ->and($output['errors'])->toBe(1)
         ->and($output['failures'])->toHaveCount(2)
         ->and($output['error_details'])->toHaveCount(1);
+});
+
+it('merges issues reported by multiple workers', function (): void {
+    $output = decodeOutput(runWith('paratest', 'Deprecation|Notice|Warning', extraArgs: ['--processes', '3']));
+
+    expect($output['result'])->toBe('passed')
+        ->and($output['tests'])->toBe(3)
+        ->and($output['passed'])->toBe(3)
+        ->and($output['deprecations'])->toBe(1)
+        ->and($output['warnings'])->toBe(1)
+        ->and($output['notices'])->toBe(1)
+        ->and($output['deprecation_details'][0]['file'])->toEndWith('DeprecationTest.php')
+        ->and($output['warning_details'][0]['file'])->toEndWith('WarningTest.php')
+        ->and($output['notice_details'][0]['file'])->toEndWith('NoticeTest.php');
+});
+
+it('merges test outcomes reported by multiple workers', function (): void {
+    $filter = 'RiskyTest|SkippedTest|IncompleteTest|FailingTest';
+
+    $output = decodeOutput(runWith('paratest', $filter, extraArgs: ['--processes', '4']));
+
+    expect($output['result'])->toBe('failed')
+        ->and($output['tests'])->toBe(5)
+        ->and($output['passed'])->toBe(3)
+        ->and($output['failed'])->toBe(1)
+        ->and($output['skipped'])->toBe(1)
+        ->and($output['incomplete'])->toBe(1)
+        ->and($output['risky'])->toBe(1)
+        ->and($output['failures'][0]['file'])->toEndWith('FailingTest.php');
 });
 
 it('outputs normal paratest output when no agent is detected', function (): void {
