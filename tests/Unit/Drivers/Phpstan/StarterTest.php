@@ -380,3 +380,105 @@ it('handles multiple files with multiple errors', function (): void {
         ->and($result['error_details'])->toHaveKey('/src/Bar.php')
         ->and($result['error_details']['/src/Bar.php'])->toHaveCount(1);
 });
+
+/**
+ * @param  array<int, string>  $argv
+ */
+function phpstanShouldTransform(array $argv): bool
+{
+    $method = new ReflectionMethod(Starter::class, 'shouldTransform');
+
+    /** @var bool $result */
+    $result = $method->invoke(new Starter, $argv);
+
+    return $result;
+}
+
+it('transforms the analyse command', function (string $command): void {
+    expect(phpstanShouldTransform(['phpstan', $command, 'src']))->toBeTrue();
+})->with(['analyse', 'analyze']);
+
+it('transforms when no command is given and analyse is the default', function (array $argv): void {
+    expect(phpstanShouldTransform($argv))->toBeTrue();
+})->with([
+    [['phpstan']],
+    [['phpstan', '-cphpstan.neon']],
+    [['phpstan', '--level=8']],
+    [['phpstan', '-v']],
+]);
+
+it('ignores paths given without a command, matching how phpstan reads them', function (): void {
+    expect(phpstanShouldTransform(['phpstan', '--level=8', 'src']))->toBeFalse();
+});
+
+it('ignores every other phpstan command', function (string $command): void {
+    expect(phpstanShouldTransform(['phpstan', $command]))->toBeFalse();
+})->with([
+    'clear-result-cache',
+    'diagnose',
+    'dump-parameters',
+    'bisect',
+    'worker',
+    'fixer:worker',
+    'completion',
+    '_complete',
+    'help',
+    'list',
+]);
+
+it('ignores invocations that do not produce a json report', function (array $argv): void {
+    expect(phpstanShouldTransform($argv))->toBeFalse();
+})->with([
+    [['phpstan', 'analyse', '--generate-baseline']],
+    [['phpstan', 'analyse', '--generate-baseline', 'baseline.neon']],
+    [['phpstan', 'analyse', '--generate-baseline=baseline.neon']],
+    [['phpstan', 'analyse', '-b']],
+    [['phpstan', 'analyse', '-bbaseline.neon']],
+    [['phpstan', 'analyse', '--fix']],
+    [['phpstan', 'analyse', '--watch']],
+    [['phpstan', 'analyse', '--pro']],
+]);
+
+it('only inspects the arguments belonging to the analyse command', function (): void {
+    expect(phpstanShouldTransform(['/opt/-b/vendor/bin/phpstan', 'analyse', 'src']))->toBeTrue()
+        ->and(phpstanShouldTransform(['phpstan', '-bbaseline.neon', 'analyse', 'src']))->toBeFalse();
+});
+
+/**
+ * @param  array<int, string>  $argv
+ * @return array<int, string>
+ */
+function phpstanRewriteArgv(array $argv): array
+{
+    $starter = new Starter;
+
+    /** @var array<int, string> $argv */
+    $argv = (new ReflectionMethod(Starter::class, 'ensureErrorFormatJson'))->invoke($starter, $argv);
+
+    /** @var array<int, string> $argv */
+    $argv = (new ReflectionMethod(Starter::class, 'ensureNoProgress'))->invoke($starter, $argv);
+
+    return $argv;
+}
+
+it('appends its options to the end of the arguments', function (): void {
+    expect(phpstanRewriteArgv(['phpstan', 'analyse', 'src']))
+        ->toBe(['phpstan', 'analyse', 'src', '--error-format=json', '--no-progress']);
+});
+
+it('keeps its options before the end of options separator', function (): void {
+    expect(phpstanRewriteArgv(['phpstan', 'analyse', '--', 'src']))
+        ->toBe(['phpstan', 'analyse', '--error-format=json', '--no-progress', '--', 'src']);
+});
+
+it('replaces an error format the caller already passed', function (array $argv): void {
+    expect(phpstanRewriteArgv($argv))->toBe(['phpstan', 'analyse', '--error-format=json', '--no-progress']);
+})->with([
+    [['phpstan', 'analyse', '--error-format=table']],
+    [['phpstan', 'analyse', '--error-format', 'table']],
+]);
+
+it('does not repeat the no progress flag the caller already passed', function (): void {
+    expect(phpstanRewriteArgv(['phpstan', 'analyse', '--no-progress']))
+        ->toBe(['phpstan', 'analyse', '--no-progress', '--error-format=json']);
+});

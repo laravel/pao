@@ -25,7 +25,7 @@ if (! $agent->isAgent && ! filter_var($_SERVER['PAO_FORCE'] ?? false, FILTER_VAL
     return;
 }
 
-if (array_intersect($argv, ['--version', '--help', '-h', 'worker'])) {
+if (array_intersect($argv, ['--version', '-V', '--help', '-h', 'worker'])) {
     return;
 }
 

@@ -44,36 +44,48 @@ final class Starter extends BaseStarter
      */
     private function shouldTransform(array $argv): bool
     {
-        return $this->isAnalyseCommand($argv) && $this->producesJsonReport($argv);
+        $arguments = $this->analyseArguments($argv);
+
+        return $arguments !== null && $this->producesJsonReport($arguments);
     }
 
     /**
      * @param  array<int, string>  $argv
+     * @return array<int, string>|null
      */
-    private function isAnalyseCommand(array $argv): bool
+    private function analyseArguments(array $argv): ?array
     {
+        $arguments = [];
+        $command = null;
+
         foreach (array_slice($argv, 1) as $arg) {
-            if (str_starts_with($arg, '-')) {
+            if ($command === null && ! str_starts_with($arg, '-')) {
+                $command = $arg;
+
                 continue;
             }
 
-            return in_array($arg, ['analyse', 'analyze'], true);
+            $arguments[] = $arg;
         }
 
-        return true;
+        if ($command !== null && ! in_array($command, ['analyse', 'analyze'], true)) {
+            return null;
+        }
+
+        return $arguments;
     }
 
     /**
-     * @param  array<int, string>  $argv
+     * @param  array<int, string>  $arguments
      */
-    private function producesJsonReport(array $argv): bool
+    private function producesJsonReport(array $arguments): bool
     {
-        foreach ($argv as $arg) {
-            if (in_array($arg, ['-b', '--generate-baseline', '--fix', '--watch', '--pro'], true)) {
+        foreach ($arguments as $arg) {
+            if (in_array($arg, ['--fix', '--watch', '--pro'], true)) {
                 return false;
             }
 
-            if (str_starts_with($arg, '--generate-baseline=')) {
+            if (str_starts_with($arg, '--generate-baseline') || str_starts_with($arg, '-b')) {
                 return false;
             }
         }
@@ -265,9 +277,7 @@ final class Starter extends BaseStarter
             $filtered[] = $arg;
         }
 
-        $filtered[] = '--error-format=json';
-
-        return $filtered;
+        return $this->addOption($filtered, '--error-format=json');
     }
 
     /**
@@ -276,9 +286,28 @@ final class Starter extends BaseStarter
      */
     private function ensureNoProgress(array $argv): array
     {
-        if (! in_array('--no-progress', $argv, true)) {
-            $argv[] = '--no-progress';
+        if (in_array('--no-progress', $argv, true)) {
+            return $argv;
         }
+
+        return $this->addOption($argv, '--no-progress');
+    }
+
+    /**
+     * @param  array<int, string>  $argv
+     * @return array<int, string>
+     */
+    private function addOption(array $argv, string $option): array
+    {
+        $separator = array_search('--', $argv, true);
+
+        if (! is_int($separator)) {
+            $argv[] = $option;
+
+            return $argv;
+        }
+
+        array_splice($argv, $separator, 0, [$option]);
 
         return $argv;
     }

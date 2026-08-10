@@ -68,6 +68,22 @@ function runPhpstan(string $configPath, bool $withAgent = true, array $extraArgs
     return $process;
 }
 
+/**
+ * @param  array<int, string>  $args
+ */
+function runPhpstanRaw(array $args, bool $withAgent = true): Process
+{
+    $process = new Process(
+        command: [PHP_BINARY, 'vendor/bin/phpstan', ...$args],
+        cwd: dirname(__DIR__),
+        env: buildAgentEnvironment($withAgent),
+    );
+
+    $process->run();
+
+    return $process;
+}
+
 function runRector(string $configPath, bool $withAgent = true, array $extraArgs = []): Process
 {
     $env = [

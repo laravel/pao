@@ -118,6 +118,37 @@ it('leaves baseline generation untouched', function (): void {
         ->and($raw)->toContain('Baseline generated');
 });
 
+it('leaves baseline generation untouched when the shortcut is glued to its value', function (): void {
+    $baseline = sys_get_temp_dir().'/pao-test-glued-baseline.neon';
+
+    $process = runPhpstan(
+        'tests/Fixtures/Phpstan/errors/phpstan.neon',
+        extraArgs: ['-b'.$baseline],
+    );
+
+    $raw = $process->getOutput();
+
+    @unlink($baseline);
+
+    expect($raw)->not->toContain('"tool":"phpstan"')
+        ->and($raw)->toContain('Baseline generated');
+});
+
+it('leaves the version output untouched for either flag', function (string $flag): void {
+    $raw = runPhpstanRaw([$flag])->getOutput();
+
+    expect($raw)->not->toContain('"tool":"phpstan"')
+        ->and($raw)->not->toContain('"raw"')
+        ->and($raw)->toContain('PHPStan');
+})->with(['--version', '-V']);
+
+it('leaves the help output untouched for either flag', function (string $flag): void {
+    $raw = runPhpstanRaw([$flag])->getOutput();
+
+    expect($raw)->not->toContain('"tool":"phpstan"')
+        ->and($raw)->toContain('Usage:');
+})->with(['--help', '-h']);
+
 it('passes through normal output without agent', function (): void {
     $process = runPhpstan('tests/Fixtures/Phpstan/errors/phpstan.neon', withAgent: false);
 
@@ -153,4 +184,15 @@ it('shows all error details with verbose flag', function (): void {
         ->and($totalErrors)->toBe(50)
         ->and($output)->not->toHaveKey('truncated')
         ->and($output)->not->toHaveKey('hint');
+});
+
+it('outputs json when paths follow the end of options separator', function (): void {
+    $output = decodeOutput(runPhpstanRaw([
+        'analyse', '--configuration', 'tests/Fixtures/Phpstan/errors/phpstan.neon',
+        '--', 'tests/Fixtures/Phpstan/errors/src',
+    ]));
+
+    expect($output['result'])->toBe('failed')
+        ->and($output['errors'])->toBe(2)
+        ->and($output)->not->toHaveKey('raw');
 });
