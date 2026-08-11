@@ -132,6 +132,12 @@ it('outputs normal pest output when no agent is detected', function (): void {
         ->and($process->getOutput())->toContain('passed');
 });
 
+it('includes stack traces for failures', function (): void {
+    $output = decodeOutput(runWith('pest', 'FailingTest'));
+
+    expect($output['failures'][0]['trace'][0])->toEndWith('FailingTest.php:18');
+});
+
 it('outputs json when PAO_FORCE is set without an agent', function (): void {
     $output = decodeOutput(runWith('pest', 'PassingTest', withAgent: false, extraEnv: ['PAO_FORCE' => '1']));
 

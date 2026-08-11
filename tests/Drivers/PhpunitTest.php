@@ -141,6 +141,22 @@ it('outputs json for multiple failures and errors', function (): void {
         ->and($output['error_details'])->toHaveCount(1);
 });
 
+it('includes stack traces for failures and errors', function (): void {
+    $output = decodeOutput(runWith('phpunit', 'MultipleFailuresTest'));
+
+    expect($output['failures'][0]['trace'])->toHaveCount(1)
+        ->and($output['failures'][0]['trace'][0])->toEndWith('MultipleFailuresTest.php:18')
+        ->and($output['error_details'][0]['trace'])->toHaveCount(1)
+        ->and($output['error_details'][0]['trace'][0])->toEndWith('MultipleFailuresTest.php:28');
+});
+
+it('limits stack traces to five frames', function (): void {
+    $output = decodeOutput(runWith('phpunit', 'DeepStackTest'));
+
+    expect($output['failures'][0]['trace'])->toHaveCount(5)
+        ->and($output['failures'][0]['trace'][0])->toEndWith('DeepStackTest.php:19');
+});
+
 it('outputs normal phpunit output when no agent is detected', function (): void {
     $process = runWith('phpunit', 'PassingTest', withAgent: false);
 

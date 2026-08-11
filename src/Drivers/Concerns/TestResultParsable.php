@@ -30,6 +30,8 @@ use PHPUnit\TextUI\Configuration\Registry as ConfigurationRegistry;
  */
 trait TestResultParsable
 {
+    private const int STACK_TRACE_LIMIT = 5;
+
     public ?TestResult $testResult = null;
 
     private bool $executionFinished = false;
@@ -166,7 +168,7 @@ trait TestResultParsable
 
         $durationMs = ProfileCollector::durationMs();
 
-        /** @var list<array{test: string, file: string, line: int, message: string}> $failureDetails */
+        /** @var list<array{test: string, file: string, line: int, message: string, trace?: list<string>}> $failureDetails */
         $failureDetails = [];
 
         foreach ($testResult->testFailedEvents() as $event) {
@@ -180,27 +182,29 @@ trait TestResultParsable
 
                 [$file, $line] = $this->resolveTestLocation($file, $line, $throwable);
 
-                $failureDetails[] = [
-                    'test' => $test instanceof TestMethod ? $test->nameWithClass() : $test->id(),
-                    'file' => $file,
-                    'line' => $line,
-                    'message' => $message,
-                ];
+                $failureDetails[] = $this->buildTestDetail(
+                    $test instanceof TestMethod ? $test->nameWithClass() : $test->id(),
+                    $file,
+                    $line,
+                    $message,
+                    $throwable,
+                );
 
                 continue;
             }
 
             [$file, $line] = $this->resolveTestLocation('', 0, $throwable);
 
-            $failureDetails[] = [
-                'test' => $event->testClassName().'::'.$event->calledMethod()->methodName(),
-                'file' => $file,
-                'line' => $line,
-                'message' => $message,
-            ];
+            $failureDetails[] = $this->buildTestDetail(
+                $event->testClassName().'::'.$event->calledMethod()->methodName(),
+                $file,
+                $line,
+                $message,
+                $throwable,
+            );
         }
 
-        /** @var list<array{test: string, file: string, line: int, message: string}> $errorDetails */
+        /** @var list<array{test: string, file: string, line: int, message: string, trace?: list<string>}> $errorDetails */
         $errorDetails = [];
 
         foreach ($testResult->testErroredEvents() as $event) {
@@ -213,12 +217,13 @@ trait TestResultParsable
 
                 [$file, $line] = $this->resolveTestLocation($file, $line, $throwable);
 
-                $errorDetails[] = [
-                    'test' => $test instanceof TestMethod ? $test->nameWithClass() : $test->id(),
-                    'file' => $file,
-                    'line' => $line,
-                    'message' => $message,
-                ];
+                $errorDetails[] = $this->buildTestDetail(
+                    $test instanceof TestMethod ? $test->nameWithClass() : $test->id(),
+                    $file,
+                    $line,
+                    $message,
+                    $throwable,
+                );
             }
         }
 
@@ -297,6 +302,40 @@ trait TestResultParsable
         }
 
         return $result;
+    }
+
+    /**
+     * @return array{test: string, file: string, line: int, message: string, trace?: list<string>}
+     */
+    private function buildTestDetail(string $test, string $file, int $line, string $message, Throwable $throwable): array
+    {
+        $detail = [
+            'test' => $test,
+            'file' => $file,
+            'line' => $line,
+            'message' => $message,
+        ];
+
+        $trace = $this->stackTraceFrames($throwable);
+
+        if ($trace !== []) {
+            $detail['trace'] = $trace;
+        }
+
+        return $detail;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function stackTraceFrames(Throwable $throwable): array
+    {
+        $frames = array_values(array_filter(
+            array_map(trim(...), explode("\n", $throwable->stackTrace())),
+            fn (string $frame): bool => $frame !== '',
+        ));
+
+        return array_slice($frames, 0, self::STACK_TRACE_LIMIT);
     }
 
     private function failsOnEmptyTestSuite(): bool
