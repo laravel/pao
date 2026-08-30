@@ -32,7 +32,7 @@ final class PaoOutputStyle extends OutputStyle
     #[\Override]
     public function write(string|iterable $messages, bool $newline = false, int $options = 0): void
     {
-        parent::write($this->clean($messages), $newline, $options);
+        parent::write($this->clean($messages, ($options & self::OUTPUT_RAW) === 0), $newline, $options);
     }
 
     /**
@@ -41,17 +41,23 @@ final class PaoOutputStyle extends OutputStyle
     #[\Override]
     public function writeln(string|iterable $messages, int $type = self::OUTPUT_NORMAL): void
     {
-        parent::writeln($this->clean($messages), $type);
+        parent::writeln($this->clean($messages, ($type & self::OUTPUT_RAW) === 0), $type);
     }
 
     /**
      * @param  string|iterable<string>  $messages
      * @return string|list<string>
      */
-    private function clean(string|iterable $messages): string|array
+    private function clean(string|iterable $messages, bool $format): string|array
     {
-        $formatter = self::$formatter ??= new OutputFormatter(false);
-        $strip = fn (string $m): string => OutputCleaner::clean((string) $formatter->format($m));
+        $strip = function (string $message) use ($format): string {
+            if ($format) {
+                $formatter = self::$formatter ??= new OutputFormatter(false);
+                $message = (string) $formatter->format($message);
+            }
+
+            return OutputCleaner::clean($message);
+        };
 
         if (is_string($messages)) {
             return $strip($messages);
