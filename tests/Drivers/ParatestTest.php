@@ -147,7 +147,7 @@ it('reports the failing line and includes stack traces for failures', function (
     $output = decodeOutput(runWith('paratest', 'SharedHelperTest'));
 
     expect($output['failures'][0]['line'])->toBe(14)
-        ->and($output['failures'][0]['trace'][0])->toEndWith('Support/ChecksTotals.php:13')
+        ->and(normalizePath($output['failures'][0]['trace'][0]))->toEndWith('Support/ChecksTotals.php:13')
         ->and($output['failures'][0]['trace'][1])->toEndWith('SharedHelperTest.php:14');
 });
 

@@ -345,11 +345,16 @@ trait TestResultParsable
 
         $frames = array_values(array_filter(
             $frames,
-            fn (string $frame, int $index): bool => $index === 0 || preg_match('#[\\/]vendor[\\/]#', $frame) !== 1,
+            fn (string $frame, int $index): bool => $index === 0 || ! $this->isVendorFrame($frame),
             ARRAY_FILTER_USE_BOTH,
         ));
 
         return array_slice($frames, 0, self::STACK_TRACE_LIMIT);
+    }
+
+    private function isVendorFrame(string $frame): bool
+    {
+        return str_contains($frame, '/vendor/') || str_contains($frame, '\\vendor\\');
     }
 
     private function failsOnEmptyTestSuite(): bool

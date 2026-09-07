@@ -33,6 +33,11 @@ function runWith(string $binary, string $filter, bool $withAgent = true, array $
     return $process;
 }
 
+function normalizePath(string $path): string
+{
+    return str_replace('\\', '/', $path);
+}
+
 function cleanOutput(string $raw): string
 {
     $raw = str_replace("\r", '', $raw);

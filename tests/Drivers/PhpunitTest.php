@@ -158,7 +158,7 @@ it('includes a stack trace when the failure happens inside a shared helper', fun
     expect($output['failures'][0]['file'])->toEndWith('SharedHelperTest.php')
         ->and($output['failures'][0]['line'])->toBe(14)
         ->and($output['failures'][0]['trace'])->toHaveCount(2)
-        ->and($output['failures'][0]['trace'][0])->toEndWith('Support/ChecksTotals.php:13')
+        ->and(normalizePath($output['failures'][0]['trace'][0]))->toEndWith('Support/ChecksTotals.php:13')
         ->and($output['failures'][0]['trace'][1])->toEndWith('SharedHelperTest.php:14');
 });
 
@@ -166,11 +166,11 @@ it('drops vendor frames from the stack trace but keeps the first frame', functio
     $output = decodeOutput(runWith('phpunit', 'VendorFramesTest'));
 
     expect($output['failures'][0]['line'])->toBe(24)
-        ->and($output['failures'][0]['trace'])->each->not->toContain('/vendor/')
+        ->and(array_map(normalizePath(...), $output['failures'][0]['trace']))->each->not->toContain('/vendor/')
         ->and($output['failures'][0]['trace'])->toHaveCount(5)
         ->and($output['error_details'][0]['line'])->toBe(30)
         ->and($output['error_details'][0]['trace'])->toHaveCount(2)
-        ->and($output['error_details'][0]['trace'][0])->toContain('/vendor/laravel/framework/')
+        ->and(normalizePath($output['error_details'][0]['trace'][0]))->toContain('/vendor/laravel/framework/')
         ->and($output['error_details'][0]['trace'][1])->toEndWith('VendorFramesTest.php:30');
 });
 
