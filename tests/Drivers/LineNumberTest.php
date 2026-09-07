@@ -7,7 +7,7 @@ $pestConfig = 'tests/Fixtures/Pest/phpunit.xml';
 it('reports correct line for phpunit assertion failure', function (): void {
     $output = decodeOutput(runWith('phpunit', 'FailingTest::test_it_fails'));
 
-    expect($output['failures'][0]['line'])->toBe(16)
+    expect($output['failures'][0]['line'])->toBe(18)
         ->and($output['failures'][0]['file'])->toEndWith('FailingTest.php');
 });
 

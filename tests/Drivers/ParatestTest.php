@@ -143,6 +143,14 @@ it('merges test outcomes reported by multiple workers', function (): void {
         ->and($output['failures'][0]['file'])->toEndWith('FailingTest.php');
 });
 
+it('reports the failing line and includes stack traces for failures', function (): void {
+    $output = decodeOutput(runWith('paratest', 'SharedHelperTest'));
+
+    expect($output['failures'][0]['line'])->toBe(14)
+        ->and($output['failures'][0]['trace'][0])->toEndWith('Support/ChecksTotals.php:13')
+        ->and($output['failures'][0]['trace'][1])->toEndWith('SharedHelperTest.php:14');
+});
+
 it('outputs normal paratest output when no agent is detected', function (): void {
     $process = runWith('paratest', 'PassingTest', withAgent: false);
 

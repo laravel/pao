@@ -132,6 +132,31 @@ it('outputs normal pest output when no agent is detected', function (): void {
         ->and($process->getOutput())->toContain('passed');
 });
 
+it('reports the failing line and includes stack traces for failures', function (): void {
+    $output = decodeOutput(runWith('pest', 'SharedHelperTest'));
+
+    expect($output['failures'][0]['line'])->toBe(14)
+        ->and($output['failures'][0]['trace'][0])->toEndWith('Support/ChecksTotals.php:13')
+        ->and($output['failures'][0]['trace'][1])->toEndWith('SharedHelperTest.php:14');
+});
+
+it('includes stack traces for failures inside nested closures', function (): void {
+    $output = decodeOutput(runWith('pest', 'PestTraceTest', config: 'tests/Fixtures/Pest/phpunit.xml'));
+
+    expect($output['failures'][0]['line'])->toBe(7)
+        ->and($output['failures'][0]['trace'])->toHaveCount(2)
+        ->and($output['failures'][0]['trace'][0])->toEndWith('PestTraceTest.php:7')
+        ->and($output['failures'][0]['trace'][1])->toEndWith('PestTraceTest.php:6');
+});
+
+it('includes stack traces for failures inside nested closures via pest --parallel', function (): void {
+    $output = decodeOutput(runWith('pest', 'PestTraceTest', extraArgs: ['--parallel'], config: 'tests/Fixtures/Pest/phpunit.xml'));
+
+    expect($output['failures'][0]['line'])->toBe(7)
+        ->and($output['failures'][0]['trace'])->toHaveCount(2)
+        ->and($output['failures'][0]['trace'][0])->toEndWith('PestTraceTest.php:7');
+});
+
 it('outputs json when PAO_FORCE is set without an agent', function (): void {
     $output = decodeOutput(runWith('pest', 'PassingTest', withAgent: false, extraEnv: ['PAO_FORCE' => '1']));
 

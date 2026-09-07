@@ -141,6 +141,47 @@ it('outputs json for multiple failures and errors', function (): void {
         ->and($output['error_details'])->toHaveCount(1);
 });
 
+it('reports the failing line and omits the trace when it would only repeat file and line', function (): void {
+    $output = decodeOutput(runWith('phpunit', 'MultipleFailuresTest'));
+
+    expect($output['failures'][0]['line'])->toBe(18)
+        ->and($output['failures'][0])->not->toHaveKey('trace')
+        ->and($output['failures'][1]['line'])->toBe(23)
+        ->and($output['failures'][1])->not->toHaveKey('trace')
+        ->and($output['error_details'][0]['line'])->toBe(28)
+        ->and($output['error_details'][0])->not->toHaveKey('trace');
+});
+
+it('includes a stack trace when the failure happens inside a shared helper', function (): void {
+    $output = decodeOutput(runWith('phpunit', 'SharedHelperTest'));
+
+    expect($output['failures'][0]['file'])->toEndWith('SharedHelperTest.php')
+        ->and($output['failures'][0]['line'])->toBe(14)
+        ->and($output['failures'][0]['trace'])->toHaveCount(2)
+        ->and($output['failures'][0]['trace'][0])->toEndWith('Support/ChecksTotals.php:13')
+        ->and($output['failures'][0]['trace'][1])->toEndWith('SharedHelperTest.php:14');
+});
+
+it('drops vendor frames from the stack trace but keeps the first frame', function (): void {
+    $output = decodeOutput(runWith('phpunit', 'VendorFramesTest'));
+
+    expect($output['failures'][0]['line'])->toBe(24)
+        ->and($output['failures'][0]['trace'])->each->not->toContain('/vendor/')
+        ->and($output['failures'][0]['trace'])->toHaveCount(5)
+        ->and($output['error_details'][0]['line'])->toBe(30)
+        ->and($output['error_details'][0]['trace'])->toHaveCount(2)
+        ->and($output['error_details'][0]['trace'][0])->toContain('/vendor/laravel/framework/')
+        ->and($output['error_details'][0]['trace'][1])->toEndWith('VendorFramesTest.php:30');
+});
+
+it('limits stack traces to five frames', function (): void {
+    $output = decodeOutput(runWith('phpunit', 'DeepStackTest'));
+
+    expect($output['failures'][0]['line'])->toBe(19)
+        ->and($output['failures'][0]['trace'])->toHaveCount(5)
+        ->and($output['failures'][0]['trace'][0])->toEndWith('DeepStackTest.php:19');
+});
+
 it('outputs normal phpunit output when no agent is detected', function (): void {
     $process = runWith('phpunit', 'PassingTest', withAgent: false);
 
