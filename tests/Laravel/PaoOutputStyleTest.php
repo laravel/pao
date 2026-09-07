@@ -198,3 +198,102 @@ it('collapses multi-space runs caused by tag stripping', function (): void {
 
     expect(trim($output->fetch()))->toBe('A B');
 });
+
+it('formats write output when no options are given', function (): void {
+    $output = new BufferedOutput(OutputInterface::VERBOSITY_NORMAL, true);
+    $style = new PaoOutputStyle(new ArrayInput([]), $output);
+
+    $style->write('<info>Value</info>');
+
+    expect($output->fetch())->toBe('Value');
+});
+
+it('formats plain output the same as normal output', function (): void {
+    $output = new BufferedOutput(OutputInterface::VERBOSITY_NORMAL, true);
+    $style = new PaoOutputStyle(new ArrayInput([]), $output);
+
+    $style->write('<info>Value</info>', options: OutputInterface::OUTPUT_PLAIN);
+
+    expect($output->fetch())->toBe('Value');
+});
+
+it('bypasses the formatter when raw is combined with a verbosity flag', function (): void {
+    $output = new BufferedOutput(OutputInterface::VERBOSITY_NORMAL, true);
+    $style = new PaoOutputStyle(new ArrayInput([]), $output);
+
+    $style->write('<info>Value</info>', options: OutputInterface::OUTPUT_RAW | OutputInterface::VERBOSITY_NORMAL);
+
+    expect($output->fetch())->toBe('<info>Value</info>');
+});
+
+it('bypasses the formatter when raw is combined with normal', function (): void {
+    $output = new BufferedOutput(OutputInterface::VERBOSITY_NORMAL, true);
+    $style = new PaoOutputStyle(new ArrayInput([]), $output);
+
+    $style->write('<info>Value</info>', options: OutputInterface::OUTPUT_NORMAL | OutputInterface::OUTPUT_RAW);
+
+    expect($output->fetch())->toBe('<info>Value</info>');
+});
+
+it('still cleans ANSI and console noise from raw output', function (): void {
+    $output = new BufferedOutput(OutputInterface::VERBOSITY_NORMAL, true);
+    $style = new PaoOutputStyle(new ArrayInput([]), $output);
+
+    $style->writeln("\e[32m┌── <info>Name</info>".str_repeat('.', 10)." Value ─┐\e[0m", OutputInterface::OUTPUT_RAW);
+
+    expect(trim($output->fetch()))->toBe('<info>Name</info>.. Value');
+});
+
+it('preserves tag-like payload data in raw output', function (): void {
+    $output = new BufferedOutput(OutputInterface::VERBOSITY_NORMAL, true);
+    $style = new PaoOutputStyle(new ArrayInput([]), $output);
+
+    $payload = '{"label":"<info>","url":"<https://example.com>"}';
+
+    $style->write($payload, options: OutputInterface::OUTPUT_RAW);
+
+    expect($output->fetch())->toBe($payload);
+});
+
+it('drops tag-like payload data outside of raw output', function (): void {
+    $output = new BufferedOutput(OutputInterface::VERBOSITY_NORMAL, true);
+    $style = new PaoOutputStyle(new ArrayInput([]), $output);
+
+    $style->write('{"label":"<info>","url":"<https://example.com>"}');
+
+    expect($output->fetch())->toBe('{"label":"","url":"<https://example.com>"}');
+});
+
+it('preserves style tags for raw iterable write output', function (): void {
+    $output = new BufferedOutput(OutputInterface::VERBOSITY_NORMAL, true);
+    $style = new PaoOutputStyle(new ArrayInput([]), $output);
+
+    $messages = (function (): Generator {
+        yield '<info>first</info>';
+        yield '<comment>second</comment>';
+    })();
+
+    $style->write($messages, true, OutputInterface::OUTPUT_RAW);
+
+    expect($output->fetch())->toBe(
+        '<info>first</info>'.PHP_EOL.'<comment>second</comment>'.PHP_EOL,
+    );
+});
+
+it('preserves style tags for a raw writeln string', function (): void {
+    $output = new BufferedOutput(OutputInterface::VERBOSITY_NORMAL, true);
+    $style = new PaoOutputStyle(new ArrayInput([]), $output);
+
+    $style->writeln('<comment>Value</comment>', OutputInterface::OUTPUT_RAW);
+
+    expect($output->fetch())->toBe('<comment>Value</comment>'.PHP_EOL);
+});
+
+it('still honors verbosity for raw output', function (): void {
+    $output = new BufferedOutput(OutputInterface::VERBOSITY_NORMAL, true);
+    $style = new PaoOutputStyle(new ArrayInput([]), $output);
+
+    $style->write('<info>Value</info>', options: OutputInterface::OUTPUT_RAW | OutputInterface::VERBOSITY_DEBUG);
+
+    expect($output->fetch())->toBe('');
+});
