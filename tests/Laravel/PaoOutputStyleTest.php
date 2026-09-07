@@ -97,6 +97,29 @@ it('strips ANSI and style tags together', function (): void {
     expect(trim($output->fetch()))->toBe('Value');
 });
 
+it('preserves style tags in raw write output', function (): void {
+    $output = new BufferedOutput(OutputInterface::VERBOSITY_NORMAL, true);
+    $style = new PaoOutputStyle(new ArrayInput([]), $output);
+
+    $style->write("\e[32m<info>Value</info>\e[0m", options: OutputInterface::OUTPUT_RAW);
+
+    expect($output->fetch())->toBe('<info>Value</info>');
+});
+
+it('preserves style tags in raw writeln output', function (): void {
+    $output = new BufferedOutput(OutputInterface::VERBOSITY_NORMAL, true);
+    $style = new PaoOutputStyle(new ArrayInput([]), $output);
+
+    $style->writeln([
+        '<info>first</info>',
+        '<comment>second</comment>',
+    ], OutputInterface::OUTPUT_RAW);
+
+    expect($output->fetch())->toBe(
+        '<info>first</info>'.PHP_EOL.'<comment>second</comment>'.PHP_EOL,
+    );
+});
+
 it('collapses style-wrapped dot separators to ..', function (): void {
     $output = new BufferedOutput(OutputInterface::VERBOSITY_NORMAL, true);
     $style = new PaoOutputStyle(new ArrayInput([]), $output);
