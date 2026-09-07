@@ -73,7 +73,7 @@ jobs:
           # `numberOfDeprecationsByTrigger` and `retriedTests` arguments.
           - php: '8.5'
             pest: '5'
-            paratest: '7.24.0'
+            paratest: '7.24.1'
 
     name: Paratest ${{ matrix.paratest }} - P${{ matrix.php }} - Pest ${{ matrix.pest }}
 
