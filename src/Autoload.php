@@ -32,7 +32,13 @@ if (array_intersect($argv, ['--version', '-V', '--help', '-h', 'worker'])) {
 unset($_SERVER['COLLISION_PRINTER']);
 $_SERVER['PEST_PARALLEL_NO_OUTPUT'] = '1';
 
-register_shutdown_function(function (): void {
+$pid = getmypid();
+
+register_shutdown_function(function () use ($pid): void {
+    if (getmypid() !== $pid) {
+        return;
+    }
+
     if (! Execution::running()) {
         return;
     }
