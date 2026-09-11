@@ -136,6 +136,48 @@ it('does not emit a result when the run is aborted before it finishes', function
         ->and($process->getOutput())->not->toContain('"result"');
 });
 
+it('adds a summary to a run that dies from a fatal error and keeps its exit code', function (string $binary, string $filter, string $message): void {
+    $phpArgs = ['-d', 'display_errors=0', '-d', 'log_errors=0'];
+
+    $withoutPao = runWith($binary, $filter, extraEnv: ['PAO_DISABLE' => '1'], phpArgs: $phpArgs);
+    $withPao = runWith($binary, $filter, phpArgs: $phpArgs);
+
+    expect($withPao->getExitCode())->toBe($withoutPao->getExitCode());
+
+    $output = cleanOutput($withPao->getOutput());
+
+    expect(preg_match('/^\{"tool":.*$/m', $output, $matches))->toBe(1);
+
+    $summary = json_decode($matches[0], associative: true, flags: JSON_THROW_ON_ERROR);
+    $rest = trim((string) preg_replace('/^\{"tool":.*\n?/m', '', $output));
+
+    expect($summary['tool'])->toBe($binary)
+        ->and($summary['result'])->toBe('failed')
+        ->and($summary['fatal_error']['message'])->toContain($message)
+        ->and(normalizePath($summary['fatal_error']['file']))->toContain('tests/Fixtures/'.$filter.'.php')
+        ->and(cleanOutput($withoutPao->getOutput()))->toMatch('/'.preg_quote($rest, '/').'\z/');
+})->with([
+    'pest, compile error' => ['pest', 'RedeclaredFunctionTest', 'Cannot redeclare'],
+    'pest, memory exhaustion' => ['pest', 'MemoryExhaustionTest', 'Allowed memory size'],
+    'phpunit, compile error' => ['phpunit', 'RedeclaredFunctionTest', 'Cannot redeclare'],
+    'phpunit, memory exhaustion' => ['phpunit', 'MemoryExhaustionTest', 'Allowed memory size'],
+    'phpunit, memory exhausted by small allocations' => ['phpunit', 'MemoryExhaustedBySmallAllocationsTest', 'Allowed memory size'],
+]);
+
+it('reports a fatal error with what the test printed when no memory is left', function (): void {
+    $process = runWith('pest', 'MemoryExhaustedBySmallAllocationsTest', phpArgs: ['-d', 'display_errors=0', '-d', 'log_errors=0']);
+    $output = cleanOutput($process->getOutput());
+
+    expect($process->getExitCode())->not->toBe(0)
+        ->and(preg_match('/^\{"tool":.*$/m', $output, $matches))->toBe(1);
+
+    $summary = json_decode($matches[0], associative: true, flags: JSON_THROW_ON_ERROR);
+
+    expect($summary['result'])->toBe('failed')
+        ->and($summary['fatal_error']['message'])->toContain('Allowed memory size')
+        ->and($summary['raw'])->toContain('output before the process dies');
+});
+
 it('does not break tests that spawn child processes', function (): void {
     $output = decodeOutput(runWith('phpunit', 'ExecTest'));
 
