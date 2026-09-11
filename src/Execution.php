@@ -77,9 +77,7 @@ final class Execution
 
     public function restoreStdout(): void
     {
-        if (is_resource($this->filter)) {
-            stream_filter_remove($this->filter);
-
+        if (is_resource($this->filter) && stream_filter_remove($this->filter)) {
             $this->filter = null;
         }
     }
@@ -95,7 +93,16 @@ final class Execution
         $this->restoreStdout();
 
         if ($captured !== '') {
-            fwrite(STDOUT, $captured);
+            $this->writeStdout($captured);
         }
+    }
+
+    public function writeStdout(string $output): void
+    {
+        if (is_resource($this->filter) && ! is_resource($this->stdout)) {
+            $this->stdout = fopen('php://stdout', 'w') ?: null;
+        }
+
+        fwrite(is_resource($this->stdout) ? $this->stdout : STDOUT, $output);
     }
 }

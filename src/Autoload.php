@@ -33,8 +33,12 @@ unset($_SERVER['COLLISION_PRINTER']);
 $_SERVER['PEST_PARALLEL_NO_OUTPUT'] = '1';
 
 $pid = getmypid();
+$reservedMemory = str_repeat(' ', 128 * 1024);
 
-register_shutdown_function(function () use ($pid): void {
+register_shutdown_function(function () use ($pid, &$reservedMemory): void {
+    $reservedMemory = null;
+    $error = error_get_last();
+
     if (getmypid() !== $pid) {
         return;
     }
@@ -43,37 +47,59 @@ register_shutdown_function(function () use ($pid): void {
         return;
     }
 
-    $execution = Execution::current();
+    $fatalError = is_array($error) && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR, E_RECOVERABLE_ERROR], true) ? $error : null;
 
-    $result = $execution->driver->parse() ?: [];
+    set_error_handler(static fn (): bool => true);
 
-    $captured = trim(UserFilters\CaptureFilter::output());
+    try {
+        $execution = Execution::current();
 
-    $execution->restoreStdout();
+        $result = $execution->driver->parse() ?: [];
 
-    if ($captured !== '') {
-        $captured = OutputCleaner::clean($captured);
+        if ($fatalError !== null) {
+            $result = ['result' => 'failed'] + $result;
 
-        $lines = array_values(array_filter(
-            array_map(trim(...), explode("\n", $captured)),
-            fn (string $line): bool => $line !== ''
-                && ! preg_match('/^[.st!]+$/', $line)
-                && ! preg_match('/^(Tests:|Duration:|Parallel:|Time:|Generating code coverage)\s/', $line)
-                && ! preg_match('/^(INFO\s+)?No tests found\.?$/i', $line)
-                && ! str_ends_with($line, 'by Sebastian Bergmann and contributors.'),
-        ));
-
-        if ($lines !== []) {
-            $existing = is_array($result['raw'] ?? null) ? array_values($result['raw']) : [];
-
-            $result['raw'] = [...$existing, ...$lines];
+            $result['fatal_error'] = [
+                'message' => $fatalError['message'],
+                'file' => $fatalError['file'],
+                'line' => $fatalError['line'],
+            ];
         }
-    }
 
-    if ($result !== []) {
-        $result = ['tool' => $execution->driver->name()] + $result;
+        $captured = is_resource($execution->filter) ? trim(UserFilters\CaptureFilter::output()) : '';
 
-        fwrite(STDOUT, json_encode($result, JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR).PHP_EOL);
+        $execution->restoreStdout();
+
+        if ($captured !== '') {
+            $captured = OutputCleaner::clean($captured);
+
+            $lines = array_values(array_filter(
+                array_map(trim(...), explode("\n", $captured)),
+                fn (string $line): bool => $line !== ''
+                    && ! preg_match('/^[.st!]+$/', $line)
+                    && ! preg_match('/^(Tests:|Duration:|Parallel:|Time:|Generating code coverage)\s/', $line)
+                    && ! preg_match('/^(INFO\s+)?No tests found\.?$/i', $line)
+                    && ! str_ends_with($line, 'by Sebastian Bergmann and contributors.'),
+            ));
+
+            if ($lines !== []) {
+                $existing = is_array($result['raw'] ?? null) ? array_values($result['raw']) : [];
+
+                $result['raw'] = [...$existing, ...$lines];
+            }
+        }
+
+        if ($result !== []) {
+            $result = ['tool' => $execution->driver->name()] + $result;
+
+            $execution->writeStdout(json_encode($result, JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR).PHP_EOL);
+        }
+    } catch (\Throwable $throwable) {
+        if ($fatalError === null) {
+            throw $throwable;
+        }
+    } finally {
+        restore_error_handler();
     }
 });
 
