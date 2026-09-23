@@ -28,9 +28,7 @@ That's it. PAO hooks into PHPUnit, Pest, Paratest, PHPStan, and Rector automatic
 
 ### Docker & Other Containers
 
-PAO detects an agent from the environment variables of the process it runs in (`AI_AGENT`, `CLAUDECODE`, `CURSOR_AGENT`, `CODEX_*`, and friends). If your tools run inside a container — `docker compose exec`, `docker run`, Sail, DDEV — those variables stay on the host and never reach PHP, so PAO stays dormant and your agent still gets the full, verbose output.
-
-The fix is to forward the agent variables into the container. In Compose, use the **list form**, which passes each variable through from your shell and leaves it unset in the container when it's unset on the host:
+PAO detects agents through environment variables, so when your tools run inside a container (Docker, Sail, DDEV, etc.), forward them in:
 
 ```yaml
 # compose.yaml
@@ -42,22 +40,13 @@ services:
             - CURSOR_AGENT
 ```
 
-> Use the list form, not `AI_AGENT: ${AI_AGENT:-}`. The mapping form defines the variable as an empty string even when your host doesn't set it, and PAO treats most of these variables as present-or-absent — so an empty `CLAUDECODE` would switch every teammate's test run to JSON.
-
-You can also forward per invocation, with no changes to your Compose file. Naming a variable with no value tells Docker to copy it from your shell, and to skip it if it isn't set:
+Or per command:
 
 ```bash
 docker compose exec -e AI_AGENT -e CLAUDECODE app vendor/bin/pest
-docker run --rm -e AI_AGENT -e CLAUDECODE my-app vendor/bin/phpstan
 ```
 
-If forwarding isn't practical — a CI image, a devcontainer, a wrapper script you don't control — set `PAO_FORCE` instead, which activates PAO without any agent detection:
-
-```bash
-docker compose exec -e PAO_FORCE=true app vendor/bin/pest
-```
-
-Scope `PAO_FORCE` to the commands your agent runs — documenting them in your `CLAUDE.md` or `AGENTS.md` works well — rather than baking it into the image or Compose file. Set globally, it applies to your teammates too, and they'll get JSON where they expect colors. `PAO_DISABLE=true` turns PAO back off for a single command.
+If forwarding isn't an option, set `PAO_FORCE=true` on the commands your agent runs to activate PAO without detection.
 
 ## Before & After
 
