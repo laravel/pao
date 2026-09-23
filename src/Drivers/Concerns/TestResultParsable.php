@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Laravel\Pao\Drivers\Concerns;
 
 use Pest\Plugins\Parallel\Paratest\WrapperRunner;
+use PHPUnit\Event\Application\Finished as ApplicationFinished;
+use PHPUnit\Event\Application\FinishedSubscriber as ApplicationFinishedSubscriber;
 use PHPUnit\Event\Code\TestMethod;
 use PHPUnit\Event\Code\Throwable;
 use PHPUnit\Event\Facade as EventFacade;
@@ -14,14 +16,11 @@ use PHPUnit\Event\Test\Finished;
 use PHPUnit\Event\Test\FinishedSubscriber;
 use PHPUnit\Event\Test\Prepared;
 use PHPUnit\Event\Test\PreparedSubscriber;
-use PHPUnit\Event\TestRunner\ExecutionFinished;
-use PHPUnit\Event\TestRunner\ExecutionFinishedSubscriber;
 use PHPUnit\Event\TestRunner\ExecutionStarted;
 use PHPUnit\Event\TestRunner\ExecutionStartedSubscriber;
 use PHPUnit\TestRunner\TestResult\Facade as TestResultFacade;
 use PHPUnit\TestRunner\TestResult\Issues\Issue;
 use PHPUnit\TestRunner\TestResult\TestResult;
-use PHPUnit\TextUI\Configuration\Registry as ConfigurationRegistry;
 
 /**
  * @internal
@@ -34,26 +33,27 @@ trait TestResultParsable
 
     public ?TestResult $testResult = null;
 
-    private bool $executionFinished = false;
+    private ?int $exitCode = null;
 
-    protected function registerExecutionFinishedSubscriber(): void
+    public function recordExitCode(int $exitCode): void
+    {
+        $this->exitCode = $exitCode;
+    }
+
+    protected function registerApplicationFinishedSubscriber(): void
     {
         try {
-            $markFinished = function (): void {
-                $this->executionFinished = true;
-            };
-
             EventFacade::instance()->registerSubscriber(
-                new readonly class($markFinished) implements ExecutionFinishedSubscriber
+                new readonly class($this->recordExitCode(...)) implements ApplicationFinishedSubscriber
                 {
                     /**
-                     * @param  \Closure(): void  $markFinished
+                     * @param  \Closure(int): void  $recordExitCode
                      */
-                    public function __construct(private \Closure $markFinished) {}
+                    public function __construct(private \Closure $recordExitCode) {}
 
-                    public function notify(ExecutionFinished $event): void
+                    public function notify(ApplicationFinished $event): void
                     {
-                        ($this->markFinished)();
+                        ($this->recordExitCode)($event->shellExitCode());
                     }
                 },
             );
@@ -118,6 +118,10 @@ trait TestResultParsable
             return null;
         }
 
+        if ($this->exitCode === null && $testResult->wasSuccessful()) {
+            return null;
+        }
+
         if ($testResult->numberOfTestsRun() > 0 || ProfileCollector::hasExecutionStarted()) {
             return $this->parseTestResult($testResult);
         }
@@ -136,7 +140,7 @@ trait TestResultParsable
             return WrapperRunner::$result;
         }
 
-        if (! $this->executionFinished) {
+        if ($this->exitCode === null) {
             return null;
         }
 
@@ -164,7 +168,6 @@ trait TestResultParsable
         $risky = $testResult->numberOfTestsWithTestConsideredRiskyEvents();
         $ignoredByBaseline = $testResult->numberOfIssuesIgnoredByBaseline();
         $hasNoTests = $tests === 0;
-        $noTestsFoundAndFailsOnEmpty = $hasNoTests && $this->failsOnEmptyTestSuite();
 
         $durationMs = ProfileCollector::durationMs();
 
@@ -208,28 +211,34 @@ trait TestResultParsable
         $errorDetails = [];
 
         foreach ($testResult->testErroredEvents() as $event) {
+            $throwable = $event->throwable();
+            $message = trim($throwable->message());
+
             if ($event instanceof Errored) {
                 $test = $event->test();
-                $throwable = $event->throwable();
-                $message = trim($throwable->message());
                 $file = $test->file();
                 $line = $test instanceof TestMethod ? $test->line() : 0;
-
-                [$file, $line] = $this->resolveTestLocation($file, $line, $throwable);
-
-                $errorDetails[] = $this->buildTestDetail(
-                    $test instanceof TestMethod ? $test->nameWithClass() : $test->id(),
-                    $file,
-                    $line,
-                    $message,
-                    $throwable,
-                );
+                $name = $test instanceof TestMethod ? $test->nameWithClass() : $test->id();
+            } else {
+                $file = '';
+                $line = 0;
+                $name = $event->testClassName().'::'.$event->calledMethod()->methodName();
             }
+
+            [$file, $line] = $this->resolveTestLocation($file, $line, $throwable);
+
+            $errorDetails[] = $this->buildTestDetail(
+                $name,
+                $file,
+                $line,
+                $message,
+                $throwable,
+            );
         }
 
         /** @var array<string, mixed> $result */
         $result = [
-            'result' => $testResult->wasSuccessful() && ! $noTestsFoundAndFailsOnEmpty ? 'passed' : 'failed',
+            'result' => $this->exitCode === 0 ? 'passed' : 'failed',
             'tests' => $tests,
             'passed' => $tests - $failedCount - $erroredCount - $skipped,
             'assertions' => $assertions,
@@ -355,15 +364,6 @@ trait TestResultParsable
     private function isVendorFrame(string $frame): bool
     {
         return str_contains($frame, '/vendor/') || str_contains($frame, '\\vendor\\');
-    }
-
-    private function failsOnEmptyTestSuite(): bool
-    {
-        try {
-            return ConfigurationRegistry::get()->failOnEmptyTestSuite();
-        } catch (\Throwable) {
-            return true;
-        }
     }
 
     /**

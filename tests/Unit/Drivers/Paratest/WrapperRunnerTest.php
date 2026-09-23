@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Laravel\Pao\Drivers\Paratest\Starter;
 use Laravel\Pao\Drivers\Paratest\WrapperRunner;
 use PHPUnit\TestRunner\TestResult\TestResult;
 
@@ -63,6 +64,17 @@ function mergeWorkerResults(TestResult $sum, array $workerResults): TestResult
 
     return $merged;
 }
+
+it('does not report successful worker results before the runner supplies its exit code', function (int $exitCode, string $status): void {
+    $driver = new Starter;
+    $driver->testResult = makeTestResult(['numberOfTests' => 1, 'numberOfTestsRun' => 1]);
+
+    expect($driver->parse())->toBeNull();
+
+    $driver->recordExitCode($exitCode);
+
+    expect($driver->parse()['result'])->toBe($status);
+})->with([[0, 'passed'], [1, 'failed'], [2, 'failed'], [42, 'failed']]);
 
 it('merges worker results on every supported phpunit version', function (): void {
     $merged = mergeWorkerResults(

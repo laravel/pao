@@ -89,6 +89,14 @@ final readonly class WrapperRunner implements RunnerInterface
         /** @var int $exitCode */
         $exitCode = $r->getMethod('complete')->invoke($runner, $result);
 
+        if (Execution::running()) {
+            $driver = Execution::current()->driver;
+
+            if ($driver instanceof Starter) {
+                $driver->recordExitCode($exitCode);
+            }
+        }
+
         return $exitCode;
     }
 
