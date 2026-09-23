@@ -144,7 +144,7 @@ function decodeOutput(Process $process): mixed
         $exitCode = $process->getExitCode();
         $command = $process->getCommandLine();
 
-        $pluginsFile = dirname(__DIR__).'/vendor/pest-plugins.json';
+        $pluginsFile = __DIR__.'/../vendor/pest-plugins.json';
         $plugins = file_exists($pluginsFile) ? file_get_contents($pluginsFile) : 'FILE NOT FOUND';
 
         throw new RuntimeException(
