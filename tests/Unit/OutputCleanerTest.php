@@ -49,3 +49,21 @@ it('handles combined formatting', function (): void {
 it('returns empty string for only decorative content', function (): void {
     expect(OutputCleaner::clean('├─────────────────────────────┤'))->toBe('');
 });
+
+it('strips CSI sequences with private parameters', function (): void {
+    expect(OutputCleaner::clean("\e[?25lLoading\e[?25h"))->toBe('Loading');
+});
+
+it('strips OSC hyperlinks', function (): void {
+    $input = "\e]8;;file:///app/tests/FooTest.php\e\\tests/FooTest.php:12\e]8;;\e\\";
+
+    expect(OutputCleaner::clean($input))->toBe('tests/FooTest.php:12');
+});
+
+it('strips OSC sequences terminated by BEL', function (): void {
+    expect(OutputCleaner::clean("\e]0;My Title\x07Done"))->toBe('Done');
+});
+
+it('keeps plain brackets that are not escape sequences', function (): void {
+    expect(OutputCleaner::clean('[?] Question [1;2]'))->toBe('[?] Question [1;2]');
+});
