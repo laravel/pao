@@ -13,7 +13,8 @@ final class OutputCleaner
 {
     public static function clean(string $output): string
     {
-        $output = (string) preg_replace('/\e\[[0-9;]*[A-Za-z]/', '', $output);
+        $output = (string) preg_replace('/\e\][^\x07\e]*(?:\x07|\e\\\\)/', '', $output);
+        $output = (string) preg_replace('/\e\[[0-?]*[ -\/]*[@-~]/', '', $output);
         $output = (string) preg_replace('/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F]/', '', $output);
         $output = (string) preg_replace('/\x{FFFD}/u', '', $output);
         $output = (string) preg_replace('/[─━│┌┐└┘├┤┬┴┼▓░▒═║╔╗╚╝╠╣╦╩╬➜▶►⚠✖✔●◆■▪→←↑↓▕⨯✕]+/u', '', $output);
