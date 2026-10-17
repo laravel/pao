@@ -6,13 +6,14 @@ namespace Laravel\Pao\Drivers\Pest;
 
 use Laravel\Pao\Execution;
 use Pest\Contracts\Plugins\HandlesArguments;
+use Pest\Contracts\Plugins\ObservesExitCode;
 
 /**
  * @internal
  *
  * @codeCoverageIgnore
  */
-final class Plugin implements HandlesArguments
+final class Plugin implements HandlesArguments, ObservesExitCode
 {
     public function __construct()
     {
@@ -38,5 +39,16 @@ final class Plugin implements HandlesArguments
         }
 
         return $arguments;
+    }
+
+    public function observeExitCode(int $exitCode): void
+    {
+        if (Execution::running()) {
+            $driver = Execution::current()->driver;
+
+            if ($driver instanceof Starter) {
+                $driver->recordExitCode($exitCode);
+            }
+        }
     }
 }
