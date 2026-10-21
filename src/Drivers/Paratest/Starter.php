@@ -25,7 +25,6 @@ final class Starter extends BaseStarter
     {
         $this->registerNullFilter();
         $this->startTimer();
-        $this->registerExecutionFinishedSubscriber();
         $this->silenceStdout();
 
         /** @var list<string> $serverArgv */
