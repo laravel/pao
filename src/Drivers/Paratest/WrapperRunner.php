@@ -66,6 +66,10 @@ final readonly class WrapperRunner implements RunnerInterface
 
         $startTime = hrtime(true);
 
+        if ($r->hasMethod('createRunTmpDir')) {
+            $r->getProperty('runTmpDir')->setValue($runner, $r->getMethod('createRunTmpDir')->invoke($runner));
+        }
+
         $r->getMethod('startWorkers')->invoke($runner);
         $r->getMethod('assignAllPendingTests')->invoke($runner);
         $r->getMethod('waitForAllToFinish')->invoke($runner);
