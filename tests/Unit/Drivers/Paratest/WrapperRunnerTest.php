@@ -21,9 +21,12 @@ function makeTestResult(array $overrides = []): TestResult
         $name = $parameter->getName();
         $type = $parameter->getType();
 
-        $arguments[$name] = array_key_exists($name, $overrides)
-            ? $overrides[$name]
-            : ($type instanceof ReflectionNamedType && $type->getName() === 'int' ? 0 : []);
+        $arguments[$name] = match (true) {
+            array_key_exists($name, $overrides) => $overrides[$name],
+            $type instanceof ReflectionNamedType && $type->getName() === 'int' => 0,
+            $type instanceof ReflectionNamedType && ! $type->isBuiltin() && $type->allowsNull() => null,
+            default => [],
+        };
     }
 
     if (supportsDeprecationTriggers() && ! array_key_exists('numberOfDeprecationsByTrigger', $overrides)) {
