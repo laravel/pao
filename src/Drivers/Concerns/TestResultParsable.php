@@ -162,6 +162,7 @@ trait TestResultParsable
         $warnings = $testResult->numberOfWarnings();
         $notices = $testResult->numberOfNotices();
         $risky = $testResult->numberOfTestsWithTestConsideredRiskyEvents();
+        $phpunitWarnings = $testResult->numberOfTestsWithTestTriggeredPhpunitWarningEvents();
         $ignoredByBaseline = $testResult->numberOfIssuesIgnoredByBaseline();
         $hasNoTests = $tests === 0;
         $noTestsFoundAndFailsOnEmpty = $hasNoTests && $this->failsOnEmptyTestSuite();
@@ -229,7 +230,7 @@ trait TestResultParsable
 
         /** @var array<string, mixed> $result */
         $result = [
-            'result' => $testResult->wasSuccessful() && ! $noTestsFoundAndFailsOnEmpty ? 'passed' : 'failed',
+            'result' => $testResult->wasSuccessful() && ! $noTestsFoundAndFailsOnEmpty && ! ($phpunitWarnings > 0 && $this->failsOnPhpunitWarning()) ? 'passed' : 'failed',
             'tests' => $tests,
             'passed' => $tests - $failedCount - $erroredCount - $skipped,
             'assertions' => $assertions,
@@ -270,6 +271,11 @@ trait TestResultParsable
             $result['warning_details'] = $this->extractIssueDetails(
                 [...$testResult->warnings(), ...$testResult->phpWarnings()],
             );
+        }
+
+        if ($phpunitWarnings > 0) {
+            $result['phpunit_warnings'] = $phpunitWarnings;
+            $result['phpunit_warning_details'] = $this->extractPhpunitWarningDetails($testResult);
         }
 
         if ($notices > 0) {
@@ -355,6 +361,37 @@ trait TestResultParsable
     private function isVendorFrame(string $frame): bool
     {
         return str_contains($frame, '/vendor/') || str_contains($frame, '\\vendor\\');
+    }
+
+    private function failsOnPhpunitWarning(): bool
+    {
+        try {
+            $configuration = ConfigurationRegistry::get();
+
+            // @phpstan-ignore function.alreadyNarrowedType (older supported PHPUnit versions do not have this option)
+            return ! method_exists($configuration, 'failOnPhpunitWarning') || $configuration->failOnPhpunitWarning();
+        } catch (\Throwable) {
+            return true;
+        }
+    }
+
+    /**
+     * @return list<array{test: string, message: string}>
+     */
+    private function extractPhpunitWarningDetails(TestResult $testResult): array
+    {
+        $details = [];
+
+        foreach ($testResult->testTriggeredPhpunitWarningEvents() as $test => $events) {
+            foreach ($events as $event) {
+                $details[] = [
+                    'test' => (string) $test,
+                    'message' => trim($event->message()),
+                ];
+            }
+        }
+
+        return $details;
     }
 
     private function failsOnEmptyTestSuite(): bool
