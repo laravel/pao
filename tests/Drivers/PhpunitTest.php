@@ -188,3 +188,12 @@ it('outputs normal phpunit output when no agent is detected', function (): void 
     expect($process->getOutput())->not->toContain('"result"')
         ->and($process->getOutput())->toContain('OK');
 });
+
+it('does not report passed when PHPUnit itself emits warnings', function (): void {
+    $output = decodeOutput(runWith('phpunit', 'ProviderArgumentsTest', extraEnv: ['PAO_TRIGGER_PHPUNIT_WARNING' => '1']));
+
+    expect($output['result'])->toBe('failed')
+        ->and($output['phpunit_warnings'])->toBe(1)
+        ->and($output['phpunit_warning_details'])->toHaveCount(1)
+        ->and($output['phpunit_warning_details'][0]['test'])->toContain('ProviderArgumentsTest');
+});
